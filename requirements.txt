@@ -5,3 +5,8 @@ mkdocs
 pip
 python-dotenv
 -e .
+torch
+torchvision
+matplotlib
+numpy
+jupyter
