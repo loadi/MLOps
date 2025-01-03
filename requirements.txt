@@ -10,3 +10,4 @@ torchvision
 matplotlib
 numpy
 jupyter
+onnx

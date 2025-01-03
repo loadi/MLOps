@@ -1,3 +1,6 @@
+import os
+import time
+
 from torch.nn.functional import *
 import numpy as np
 import torch
@@ -9,19 +12,20 @@ def xavier_normal(F_in, F_out):
     return torch.from_numpy(W).type(torch.float32).requires_grad_()
 
 
-class Model:
-    def __init__(self, input_size, hidden_size, output_size, learning_rate):
+class Model(torch.nn.Module):
+    def __init__(self, input_size, hidden_size, output_size, learning_rate, *args, **kwargs):
         # Инициализация параметров
-        self.w1 = xavier_normal(hidden_size, input_size)
-        self.b1 = torch.randn(hidden_size, requires_grad=True)
+        super().__init__(*args, **kwargs)
+        self.w1 = torch.nn.Parameter(xavier_normal(hidden_size, input_size))
+        self.b1 = torch.nn.Parameter(torch.randn(hidden_size, requires_grad=True))
 
-        self.w2 = xavier_normal(output_size, hidden_size)
-        self.b2 = torch.randn(output_size, requires_grad=True)
+        self.w2 = torch.nn.Parameter(xavier_normal(output_size, hidden_size))
+        self.b2 = torch.nn.Parameter(torch.randn(output_size, requires_grad=True))
 
         self.lr = learning_rate
 
     # Функция прямого прохода
-    def predict(self, x):
+    def forward(self, x):
         x = x.flatten(start_dim=1)  # преобразование тензора в плоский
         z1 = linear(x, self.w1, self.b1)  # линейное преобразование
         a1 = relu(z1)  # ф. актив. ReLU
@@ -48,3 +52,21 @@ class Model:
             self.w2.grad.zero_()
             self.b2.grad.zero_()
         return loss
+
+    def export_to_onnx(self, input_example):
+        export_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..',
+            '..',
+            'models', f'{int(time.time())}.onnx')
+        torch.onnx.export(
+            self,
+            input_example,  # Пример входных данных
+            export_path,  # Путь сохранения
+            export_params=True,  # Сохранение параметров
+            opset_version=11,  # Версия ONNX
+            do_constant_folding=True,  # Оптимизация постоянных выражений
+            input_names=['input'],  # Имена входных тензоров
+            output_names=['output'],  # Имена выходных тензоров
+            dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
+        )
